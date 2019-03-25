@@ -10,6 +10,7 @@ public class ConfigOptions {
     private int maxInflight = 1000;
     private boolean automaticReconnect = true;
     private int defaultQos = 1;
+    private String clientIdPrefix = "";
 
     public String getHost() {
         return host;
@@ -57,5 +58,13 @@ public class ConfigOptions {
 
     public void setDefaultQos(int defaultQos) {
         this.defaultQos = defaultQos;
+    }
+
+    public String getClientIdPrefix() {
+        return clientIdPrefix;
+    }
+
+    public void setClientIdPrefix(String clientIdPrefix) {
+        this.clientIdPrefix = clientIdPrefix;
     }
 }

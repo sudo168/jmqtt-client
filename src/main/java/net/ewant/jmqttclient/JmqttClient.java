@@ -6,10 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
-import java.io.FileInputStream;
-import java.security.KeyStore;
 import java.security.cert.CertificateException;
-import java.util.Properties;
 
 /**
  * Created by admin on 2018/12/7.
@@ -18,8 +15,14 @@ public class JmqttClient {
 
     Logger logger = LoggerFactory.getLogger(JmqttClient.class);
 
+    static final String TOPIC_START_CHART = "/";
+
     MqttClient client;
     ConfigOptions config;
+
+    MqttConnectOptions options = new MqttConnectOptions();
+
+    BackgroundConnect backgroundConnect = new BackgroundConnect("JmqttClient-BackgroundConnect");
 
     public JmqttClient(ConfigOptions config, MqttCallback callback){
         this(null, config, callback);
@@ -49,10 +52,9 @@ public class JmqttClient {
                 persistence = new MemoryPersistence();
             }
             if(clientId == null){
-                clientId = MqttClient.generateClientId();
+                clientId = config.getClientIdPrefix() + MqttClient.generateClientId();
             }
             this.client = new MqttClient(connectUrl, clientId, persistence);
-            MqttConnectOptions options = new MqttConnectOptions();
             if(config.isUseSSL()){
                 options.setSocketFactory(createIgnoreVerifySSL().getSocketFactory());
                 options.setSSLHostnameVerifier(new IgnoreHostnameVerifier());
@@ -60,9 +62,9 @@ public class JmqttClient {
             options.setAutomaticReconnect(config.isAutomaticReconnect());
             options.setMaxInflight(config.getMaxInflight());
             this.client.setCallback(callback);
-            this.client.connect(options);
+            backgroundConnect.start();
         } catch (MqttException e) {
-            logger.error(e.getMessage(), e);
+            logger.error(JmqttClient.class.getSimpleName() + " start error: " + e.getMessage(), e);
         }
     }
 
@@ -87,6 +89,9 @@ public class JmqttClient {
 
     public void publish(String topic, byte[] message, int qos, boolean retained){
         try {
+            if(!topic.startsWith(TOPIC_START_CHART)){
+                topic = TOPIC_START_CHART + topic;
+            }
             this.client.publish(topic, message, qos, retained);
         } catch (MqttException e) {
             logger.error(e.getMessage(), e);
@@ -121,32 +126,57 @@ public class JmqttClient {
         }
     }
 
-    public static void main(String[] args) throws Exception{
-        ConfigOptions config = new ConfigOptions();
-        config.setHost("127.0.0.1");
-        config.setPort(1885);
-        config.setUseSSL(false);
+    class BackgroundConnect extends Thread{
 
-        JmqttClient jmqttClient = new JmqttClient(config, new MqttCallback() {
-            @Override
-            public void connectionLost(Throwable cause) {
-                System.out.println("connectionLost:" + cause.getMessage());
-            }
+        boolean checkMode;
 
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
-                String msg = new String(message.getPayload());
-                System.out.println("messageArrived:" + topic + ", msg: " + msg);
-            }
+        public BackgroundConnect(String name){
+            super(name);
+        }
 
-            @Override
-            public void deliveryComplete(IMqttDeliveryToken token) {
-                System.out.println("deliveryComplete");
+        @Override
+        public void run() {
+            while (true){
+                JmqttClient.this.doConnect(checkMode);
             }
-        });
+        }
+
     }
 
-    private static SSLContext createIgnoreVerifySSL() {
+    /*递归调用，注意栈溢出*/
+    private void doConnect(final boolean reconnect){
+        if(reconnect){
+            try {
+                Thread.sleep(10000);
+                if(!backgroundConnect.checkMode)logger.info(JmqttClient.class.getSimpleName() + " client reconnect with id: " + client.getClientId());
+            } catch (InterruptedException e) {
+                logger.error(e.getMessage(), e);
+            }
+        }
+        try {
+            if(this.client.isConnected()){
+                logger.debug(JmqttClient.class.getSimpleName() + " check connect with id: " + client.getClientId());
+                return;
+            }
+            this.client.connectWithResult(options, new IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken asyncActionToken) {
+                    backgroundConnect.checkMode = true;
+                    logger.info(JmqttClient.class.getSimpleName() + " started and connected with id: " + client.getClientId());
+                }
+
+                @Override
+                public void onFailure(IMqttToken asyncActionToken, Throwable e) {
+                }
+            });
+        } catch (MqttException e) {
+            // do something in onFailure
+            logger.error(JmqttClient.class.getSimpleName() + " start failed with id: " + client.getClientId() + "error["+e.getMessage()+"]", e);
+            JmqttClient.this.doConnect(true);
+        }
+    }
+
+    private SSLContext createIgnoreVerifySSL() {
         try {
             SSLContext sc = SSLContext.getInstance("TLS");
             // 实现一个X509TrustManager接口，用于绕过验证，不用修改里面的方法
@@ -173,7 +203,7 @@ public class JmqttClient {
         return null;
     }
 
-    private static class IgnoreHostnameVerifier implements HostnameVerifier {
+    private class IgnoreHostnameVerifier implements HostnameVerifier {
         @Override
         public boolean verify(String s, SSLSession sslSession) {
             return true;
