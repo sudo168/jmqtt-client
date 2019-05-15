@@ -47,7 +47,7 @@ public class MqttDeliveryToken extends MqttToken implements IMqttDeliveryToken {
 		return internalTok.getMessage();
 	}
 	
-	protected void setMessage(MqttMessage msg) {
+	public void setMessage(MqttMessage msg) {
 		internalTok.setMessage(msg);
 	}
 }

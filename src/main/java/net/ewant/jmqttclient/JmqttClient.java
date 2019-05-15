@@ -17,6 +17,8 @@ public class JmqttClient {
 
     static final String TOPIC_START_CHART = "/";
 
+    static final String CLIENT_NOTIFY_TOPIC = "$sys/clients";
+
     MqttClient client;
     ConfigOptions config;
 
@@ -61,7 +63,9 @@ public class JmqttClient {
             }
             options.setAutomaticReconnect(config.isAutomaticReconnect());
             options.setMaxInflight(config.getMaxInflight());
-            this.client.setCallback(callback);
+            options.setUserName(config.getUsername());
+            options.setPassword(config.getPassword() == null ? null : config.getPassword().toCharArray());
+            this.client.setCallback(new JmqttCallbackExtended(callback));
             backgroundConnect.start();
         } catch (MqttException e) {
             logger.error(JmqttClient.class.getSimpleName() + " start error: " + e.getMessage(), e);
@@ -207,6 +211,66 @@ public class JmqttClient {
         @Override
         public boolean verify(String s, SSLSession sslSession) {
             return true;
+        }
+    }
+
+    private class JmqttCallbackExtended implements MqttCallbackExtended{
+
+        private MqttCallback customCallback;
+
+        JmqttCallbackExtended(MqttCallback customCallback){
+            this.customCallback = customCallback;
+            if(customCallback instanceof JmqttClientAware){
+                ((JmqttClientAware)customCallback).setClient(JmqttClient.this);
+            }
+        }
+
+        @Override
+        public void connectionLost(Throwable cause) {
+            customCallback.connectionLost(cause);
+        }
+
+        @Override
+        public void messageArrived(String topic, MqttMessage message) throws Exception {
+            if(config.isClientNotify() && CLIENT_NOTIFY_TOPIC.equals(topic)){
+                if(customCallback instanceof JmqttSessionNotify){
+                    try {
+                        String info = new String(message.getPayload());
+                        String[] is = info.split(",", -1);
+                        if(is.length == 1){
+                            ((JmqttSessionNotify) customCallback).onSessionClose(is[0]);
+                        }else if(is.length == 4){
+                            ((JmqttSessionNotify) customCallback).onSessionOpen(is[0], is[1], is[2], is[3]);
+                        }
+                    } catch (Exception e) {
+                        logger.error("process client notify error!", e);
+                    }
+                }
+                return;
+            }
+            customCallback.messageArrived(topic, message);
+        }
+
+        @Override
+        public void deliveryComplete(IMqttDeliveryToken token) {
+            customCallback.deliveryComplete(token);
+            try {
+                MqttMessage message = token.getMessage();
+                if(message != null && token instanceof MqttDeliveryToken){
+                    ((MqttDeliveryToken) token).setMessage(null);
+                }
+            } catch (MqttException e) {
+            }
+        }
+
+        @Override
+        public void connectComplete(boolean reconnect, String serverURI) {
+            if(config.isClientNotify()){
+                JmqttClient.this.subscribe(CLIENT_NOTIFY_TOPIC, 1);
+            }
+            if(customCallback instanceof MqttCallbackExtended){
+                ((MqttCallbackExtended) customCallback).connectComplete(reconnect, serverURI);
+            }
         }
     }
 }

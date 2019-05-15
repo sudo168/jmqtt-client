@@ -20,10 +20,7 @@ import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.internal.wire.MqttAck;
-import org.eclipse.paho.client.mqttv3.internal.wire.MqttConnack;
-import org.eclipse.paho.client.mqttv3.internal.wire.MqttSuback;
-import org.eclipse.paho.client.mqttv3.internal.wire.MqttWireMessage;
+import org.eclipse.paho.client.mqttv3.internal.wire.*;
 import org.eclipse.paho.client.mqttv3.logging.Logger;
 import org.eclipse.paho.client.mqttv3.logging.LoggerFactory;
 
@@ -179,7 +176,10 @@ public class Token {
 				
 		synchronized(responseLock) {
 			// ACK means that everything was OK, so mark the message for garbage collection.
-			if (msg instanceof MqttAck) {
+			/*if (msg instanceof MqttAck) {
+				this.message = null;
+			}*/
+			if(!(msg instanceof MqttPubAck || msg instanceof MqttPubComp)){
 				this.message = null;
 			}
 			this.pendingComplete = true;

@@ -9,8 +9,11 @@ public class ConfigOptions {
     private boolean useSSL;
     private int maxInflight = 1000;
     private boolean automaticReconnect = true;
+    private boolean clientNotify = true;
     private int defaultQos = 1;
     private String clientIdPrefix = "";
+    private String username;
+    private String password;
 
     public String getHost() {
         return host;
@@ -66,5 +69,29 @@ public class ConfigOptions {
 
     public void setClientIdPrefix(String clientIdPrefix) {
         this.clientIdPrefix = clientIdPrefix;
+    }
+
+    public boolean isClientNotify() {
+        return clientNotify;
+    }
+
+    public void setClientNotify(boolean clientNotify) {
+        this.clientNotify = clientNotify;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }
