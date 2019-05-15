@@ -8,6 +8,7 @@ public class ConfigOptions {
     private int port;
     private boolean useSSL;
     private int maxInflight = 1000;
+    private int timeToWait = 30;// 单位，秒（连接、发布、订阅的超时等待时间）
     private boolean automaticReconnect = true;
     private boolean clientNotify = true;
     private int defaultQos = 1;
@@ -93,5 +94,13 @@ public class ConfigOptions {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public int getTimeToWait() {
+        return timeToWait;
+    }
+
+    public void setTimeToWait(int timeToWait) {
+        this.timeToWait = timeToWait;
     }
 }

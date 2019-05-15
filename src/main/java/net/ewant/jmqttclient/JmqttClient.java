@@ -66,6 +66,7 @@ public class JmqttClient {
             options.setUserName(config.getUsername());
             options.setPassword(config.getPassword() == null ? null : config.getPassword().toCharArray());
             this.client.setCallback(new JmqttCallbackExtended(callback));
+            this.client.setTimeToWait(config.getTimeToWait() > 0 ? config.getTimeToWait() * 1000 : -1);
             backgroundConnect.start();
         } catch (MqttException e) {
             logger.error(JmqttClient.class.getSimpleName() + " start error: " + e.getMessage(), e);
