@@ -8,7 +8,7 @@ public class ConfigOptions {
     private int port;
     private boolean useSSL;
     private int maxInflight = 1000;
-    private int timeToWait = 30;// 单位，秒（连接、发布、订阅的超时等待时间）
+    private int timeToWait = 5;// 单位，秒（连接、发布、订阅的超时等待时间）
     private boolean automaticReconnect = true;
     private boolean clientNotify = true;
     private int defaultQos = 1;

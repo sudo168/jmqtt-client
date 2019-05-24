@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
+import java.io.UnsupportedEncodingException;
 import java.security.cert.CertificateException;
 
 /**
@@ -84,43 +85,51 @@ public class JmqttClient {
         return sb.toString();
     }
 
-    public void publish(String topic, String message){
+    public void publish(String topic, String message) throws JmqttException{
         this.publish(topic, message, config.getDefaultQos(), false);
     }
 
-    public void publish(String topic, String message, int qos, boolean retained){
-        this.publish(topic, message.getBytes(), qos, retained);
+    public void publish(String topic, String message, int qos, boolean retained) throws JmqttException{
+        try {
+            this.publish(topic, message.getBytes("UTF-8"), qos, retained);
+        } catch (UnsupportedEncodingException e) {
+            throw new JmqttException(e);
+        }
     }
 
-    public void publish(String topic, byte[] message, int qos, boolean retained){
+    public void publish(String topic, byte[] message, int qos, boolean retained) throws JmqttException{
         try {
             if(!topic.startsWith(TOPIC_START_CHART)){
                 topic = TOPIC_START_CHART + topic;
             }
             this.client.publish(topic, message, qos, retained);
         } catch (MqttException e) {
-            logger.error(e.getMessage(), e);
+            throw new JmqttException(e);
         }
     }
 
-    public void subscribe(String topicFilter, int qos){
+    public void subscribe(String topicFilter, int qos) throws JmqttException {
         this.subscribe(new String[] {topicFilter}, new int[] {qos});
     }
 
-    public void subscribe(String[] topicFilters, int[] qos){
+    public void subscribe(String[] topicFilters, int[] qos) throws JmqttException {
         try {
             client.subscribe(topicFilters, qos);
         } catch (MqttException e) {
-            logger.error(e.getMessage(), e);
+            throw new JmqttException(e);
         }
     }
 
-    public void unsubscribe(String topicFilter) throws MqttException {
+    public void unsubscribe(String topicFilter) throws JmqttException {
         this.unsubscribe(new String[] {topicFilter});
     }
 
-    public void unsubscribe(String[] topicFilters) throws MqttException {
-        client.unsubscribe(topicFilters);
+    public void unsubscribe(String[] topicFilters) throws JmqttException {
+        try {
+            client.unsubscribe(topicFilters);
+        } catch (MqttException e) {
+            throw new JmqttException(e);
+        }
     }
 
     public void close(){
@@ -267,7 +276,11 @@ public class JmqttClient {
         @Override
         public void connectComplete(boolean reconnect, String serverURI) {
             if(config.isClientNotify()){
-                JmqttClient.this.subscribe(CLIENT_NOTIFY_TOPIC, 1);
+                try {
+                    JmqttClient.this.subscribe(CLIENT_NOTIFY_TOPIC, 1);
+                } catch (JmqttException e) {
+                    logger.error("Subscribe client notify topic error: " + e.getMessage(), e);
+                }
             }
             if(customCallback instanceof MqttCallbackExtended){
                 ((MqttCallbackExtended) customCallback).connectComplete(reconnect, serverURI);

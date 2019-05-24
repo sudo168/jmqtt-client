@@ -86,7 +86,7 @@ public class TCPNetworkModule implements NetworkModule {
 		
 			// SetTcpNoDelay was originally set ot true disabling Nagle's algorithm.
 			// This should not be required.
-//			socket.setTcpNoDelay(true);	// TCP_NODELAY on, which means we do not use Nagle's algorithm
+			socket.setTcpNoDelay(true);	// TCP_NODELAY on, which means we do not use Nagle's algorithm
 		}
 		catch (ConnectException ex) {
 			//@TRACE 250=Failed to create TCP socket
